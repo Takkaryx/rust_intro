@@ -6,9 +6,13 @@ fn main() {
     let value = arguments.next().unwrap();
     println!("the key is '{}', and the value is '{}'", key, value);
     let contents = format!("{},{}\n", key, value);
-    std::fs::write("kv.db", contents);
 
-    let database = Database::new().expect("Database::new() crashed");
+    let mut database = Database::new().expect("Database::new() crashed");
+    database.insert(key.to_uppercase().clone(), value.clone());
+    database.insert(key.clone(), value.clone());
+    //another way of doing the same thing
+    //Database::insert(database, key, value);
+    database.flush().unwrap();
 }
 
 struct Database {
@@ -17,6 +21,9 @@ struct Database {
 
 impl Database {
     fn new() -> Result<Database, std::io::Error> {
+        //allocate the memory for the map.
+        let mut map = HashMap::new();
+
         //read the database file
         let contents = std::fs::read_to_string("kv.db")?;
         // the ? at the end, expands to what is below, hands the error back instead of the value;
@@ -29,7 +36,6 @@ impl Database {
         };
         */
 
-        let mut map = HashMap::new();
         //read each line of the file given, as each line is an entry
         for line in contents.lines() {
             let (key, value) = line
@@ -37,7 +43,19 @@ impl Database {
                 .expect("Database format invalid, crashing out");
             map.insert(key.to_owned(), value.to_owned());
         }
-
-        Ok(Database { map: map })
+        Ok(Database { map })
+    }
+    fn insert(&mut self, key: String, value: String) {
+        self.map.insert(key, value);
+    }
+    fn flush(self) -> std::io::Result<()> {
+        let mut contents = String::new();
+        for (key, value) in &self.map {
+            contents.push_str(key);
+            contents.push(',');
+            contents.push_str(value);
+            contents.push('\n');
+        }
+        std::fs::write("kv.db", contents)
     }
 }
